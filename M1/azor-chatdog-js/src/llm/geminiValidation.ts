@@ -11,6 +11,9 @@ export const GeminiConfigSchema = z.object({
   engine: z.literal('GEMINI').default('GEMINI'),
   modelName: z.string().min(1, 'Model name is required'),
   geminiApiKey: z.string().min(1, 'Gemini API key is required'),
+  topP: z.number().min(0).max(1).default(0.9),
+  topK: z.number().min(1).optional(),
+  temperature: z.number().min(0).optional(),
 });
 
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
@@ -23,6 +26,9 @@ export function validateGeminiConfig(): GeminiConfig {
     engine: 'GEMINI' as const,
     modelName: process.env.MODEL_NAME || 'gemini-2.5-flash',
     geminiApiKey: process.env.GEMINI_API_KEY || '',
+    topP: process.env.GEMINI_TOP_P ? parseFloat(process.env.GEMINI_TOP_P) : 0.9,
+    topK: process.env.GEMINI_TOP_K ? parseInt(process.env.GEMINI_TOP_K) : undefined,
+    temperature: process.env.GEMINI_TEMPERATURE ? parseFloat(process.env.GEMINI_TEMPERATURE) : undefined,
   };
 
   return GeminiConfigSchema.parse(config);

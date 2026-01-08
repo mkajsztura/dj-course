@@ -2,7 +2,13 @@
  * Google Gemini API LLM Client
  */
 
-import { GoogleGenerativeAI, Content } from '@google/generative-ai';
+import {
+  GoogleGenerativeAI,
+  Content,
+  ChatSession,
+  GenerationConfig,
+  ModelParams,
+} from '@google/generative-ai';
 import type {
   ILLMClient,
   ILLMChatSession,
@@ -15,10 +21,10 @@ import { validateGeminiConfig } from './geminiValidation.js';
  * Wrapper for Gemini chat session to provide universal interface
  */
 class GeminiChatSessionWrapper implements ILLMChatSession {
-  private geminiSession: any;
+  private geminiSession: ChatSession;
   private history: Message[] = [];
 
-  constructor(geminiSession: any, initialHistory?: Message[]) {
+  constructor(geminiSession: ChatSession, initialHistory?: Message[]) {
     this.geminiSession = geminiSession;
     this.history = initialHistory || [];
   }
@@ -53,11 +59,17 @@ export class GeminiLLMClient implements ILLMClient {
   private genAI: GoogleGenerativeAI;
   private modelName: string;
   private apiKey: string;
+  private generationConfig: GenerationConfig;
 
-  constructor(modelName: string, apiKey: string) {
+  constructor(modelName: string, apiKey: string, topP: number = 0.9, topK?: number, temperature?: number) {
     this.modelName = modelName;
     this.apiKey = apiKey;
     this.genAI = new GoogleGenerativeAI(apiKey);
+    this.generationConfig = {
+      topP,
+      topK,
+      temperature
+    };
   }
 
   /**
@@ -74,7 +86,6 @@ export class GeminiLLMClient implements ILLMClient {
   createChatSession(
     systemInstruction: string,
     history?: Message[],
-    thinkingBudget?: number
   ): ILLMChatSession {
     // Convert universal Message format to Gemini Content format
     const geminiHistory: Content[] = (history || []).map((msg) => ({
@@ -83,21 +94,16 @@ export class GeminiLLMClient implements ILLMClient {
     }));
 
     // Create model configuration
-    const modelConfig: any = {
+    const modelConfig: ModelParams = {
       model: this.modelName,
       systemInstruction: {
         role: 'system',
         parts: [{ text: systemInstruction }],
       },
+      generationConfig: {
+        ...this.generationConfig,
+      },
     };
-
-    // Add thinking budget if specified
-    if (thinkingBudget !== undefined) {
-      modelConfig.generationConfig = {
-        thinkingBudget: thinkingBudget,
-      };
-    }
-
     const model = this.genAI.getGenerativeModel(modelConfig);
 
     const geminiSession = model.startChat({
